@@ -131,13 +131,23 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
         }
     }
 
-    private fun createSearchSection(directoryPanel: JPanel): JPanel {
-        searchTextField = JBTextField()
-        searchButton = JButton("Search")
 
-        searchButton.addActionListener {
-            val searchTerm = searchTextField.text.trim()
-            performSearch(searchTerm, 1)
+
+    private fun createSearchSection(directoryPanel: JPanel): JPanel {
+        // initialize the text field and add Enter key listener
+        searchTextField = JBTextField().apply {
+            addActionListener {
+                val searchTerm = this.text.trim()
+                performSearch(searchTerm, 1)
+            }
+        }
+
+        // initialize the button and add Click listener
+        searchButton = JButton("Search").apply {
+            addActionListener {
+                val searchTerm = searchTextField.text.trim()
+                performSearch(searchTerm, 1)
+            }
         }
 
         return JBPanel<JBPanel<*>>(BorderLayout(5, 0)).apply {
@@ -146,6 +156,7 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
             add(searchButton, BorderLayout.EAST)
         }
     }
+
 
     private fun createPageControls(): JPanel {
         val previousButton = JButton("Previous")
