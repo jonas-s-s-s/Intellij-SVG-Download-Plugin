@@ -1,0 +1,12 @@
+<!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <id>svg.downloader</id>
+    <name>Svg Icon Downloader</name>
+    <vendor>Jonas D.</vendor>
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow factoryClass="svg.downloader.toolWindow.ToolWindowFactory" id="SVG Downloader"/>
+        <postStartupActivity implementation="svg.downloader.startup.ProjectActivity" />
+    </extensions>
+</idea-plugin>
