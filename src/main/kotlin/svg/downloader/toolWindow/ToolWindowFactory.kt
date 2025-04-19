@@ -7,145 +7,162 @@ import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.ui.*
-import com.intellij.ui.components.*
+import com.intellij.ui.JBColor
+import com.intellij.ui.components.JBLabel
+import com.intellij.ui.components.JBList
+import com.intellij.ui.components.JBPanel
+import com.intellij.ui.components.JBScrollPane
+import com.intellij.ui.components.JBTextField
 import com.intellij.ui.content.ContentFactory
 import svg.downloader.services.ProjectService
-import svg.downloader.utils.*
-import java.awt.*
+import svg.downloader.utils.SvgItem
+import svg.downloader.utils.extractSvgItems
+import svg.downloader.utils.fetchSvgRepoPage
+import svg.downloader.utils.svgToPngByteArray
+import java.awt.BorderLayout
+import java.awt.Dimension
+import java.awt.Font
+import javax.swing.BorderFactory
+import javax.swing.Box
+import javax.swing.BoxLayout
+import javax.swing.DefaultListModel
+import javax.swing.ImageIcon
+import javax.swing.JButton
+import javax.swing.JPanel
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import javax.swing.*
+
+
 
 class ToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val ui = SvgDownloaderUI(toolWindow)
-        val content = ContentFactory.getInstance().createContent(ui.createMainPanel(), null, false)
+        val toolWindowUI = ToolWindowUI(toolWindow)
+        val content = ContentFactory.getInstance().createContent(toolWindowUI.createContentPanel(), null, false)
         toolWindow.contentManager.addContent(content)
     }
 
     override fun shouldBeAvailable(project: Project): Boolean = true
 }
 
-private class SvgDownloaderUI(private val toolWindow: ToolWindow) {
+private class ToolWindowUI(private val toolWindow: ToolWindow) {
     private val project: Project = toolWindow.project
     private val projectService: ProjectService = project.service()
-    private val svgListModel = DefaultListModel<SvgItem>()
+    private val listModel = DefaultListModel<SvgItem>()
 
-    fun createMainPanel(): JPanel {
-        return JBPanel<JBPanel<*>>(BorderLayout()).apply {
+    fun createContentPanel(): JPanel {
+        val mainPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
             border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
-            add(createTitleLabel(), BorderLayout.NORTH)
-            add(createCenterPanel(), BorderLayout.CENTER)
         }
-    }
 
-    private fun createTitleLabel(): JBLabel {
-        return JBLabel("SVG Icon Downloader").apply {
+        val titleLabel = JBLabel("SVG Icon Downloader").apply {
             font = font.deriveFont(Font.BOLD, 16f)
             border = BorderFactory.createEmptyBorder(0, 0, 10, 0)
         }
-    }
+        mainPanel.add(titleLabel, BorderLayout.NORTH)
 
-    private fun createCenterPanel(): JPanel {
-        return JBPanel<JBPanel<*>>(BorderLayout()).apply {
-            add(createInputPanel(), BorderLayout.NORTH)
-            add(createScrollPaneWithResults(), BorderLayout.CENTER)
-        }
-    }
-
-    private fun createInputPanel(): JPanel {
-        return JBPanel<JBPanel<*>>().apply {
-            layout = BoxLayout(this, BoxLayout.Y_AXIS)
-            add(createDirectorySelectionPanel())
-            add(Box.createVerticalStrut(10))
-            add(createSearchPanel())
-            add(Box.createVerticalStrut(15))
-        }
-    }
-
-    private fun createDirectorySelectionPanel(): JPanel {
-        val directoryField = TextFieldWithBrowseButton().apply {
-            text = projectService.getProjectRootPath().toString()
+        val directoryTextField = TextFieldWithBrowseButton().apply {
             addBrowseFolderListener(
                 TextBrowseFolderListener(
                     FileChooserDescriptorFactory.createSingleFolderDescriptor(), project
                 )
             )
+            text = projectService.getProjectRootPath().toString()
         }
 
-        return JBPanel<JBPanel<*>>(BorderLayout(0, 5)).apply {
+        val directoryPanel = JBPanel<JBPanel<*>>(BorderLayout(0, 5)).apply {
             add(JBLabel("Pick a download directory:"), BorderLayout.NORTH)
-            add(directoryField, BorderLayout.CENTER)
-        }
-    }
-
-    private fun createSearchPanel(): JPanel {
-        val searchField = JBTextField()
-        val searchButton = JButton("Search")
-
-        searchButton.addActionListener {
-            performSearch(searchField.text.trim(), searchButton)
+            add(directoryTextField, BorderLayout.CENTER)
         }
 
-        return JBPanel<JBPanel<*>>(BorderLayout(5, 0)).apply {
+        val searchTextField = JBTextField()
+        val searchButton = JButton("Search").apply {
+            addActionListener {
+                listModel.clear()
+
+                val searchTerm = searchTextField.text.trim()
+                if (searchTerm.isNotEmpty()) {
+                    // Show loading indicator
+                    setEnabled(false)
+
+                    val html = fetchSvgRepoPage(searchTerm, 1)
+                    val items = extractSvgItems(html)
+
+
+                    // Update UI with results
+                    items.forEach { item ->
+                        listModel.addElement(item)
+                    }
+                    setEnabled(true)
+                }
+            }
+        }
+
+        val searchPanel = JBPanel<JBPanel<*>>(BorderLayout(5, 0)).apply {
             add(JBLabel("Searching for SVG with name:"), BorderLayout.WEST)
-            add(searchField, BorderLayout.CENTER)
+            add(searchTextField, BorderLayout.CENTER)
             add(searchButton, BorderLayout.EAST)
         }
-    }
 
-    private fun performSearch(query: String, triggerButton: JButton) {
-        svgListModel.clear()
-
-        if (query.isNotEmpty()) {
-            triggerButton.isEnabled = false
-
-            val html = fetchSvgRepoPage(query, 1)
-            val items = extractSvgItems(html)
-            items.forEach { svgListModel.addElement(it) }
-
-            triggerButton.isEnabled = true
-        }
-    }
-
-    private fun createScrollPaneWithResults(): JScrollPane {
-        val svgList = JBList(svgListModel).apply {
+        val resultsList = JBList(listModel).apply {
             visibleRowCount = 5
+            cellRenderer = CustomListCellRenderer()
             fixedCellHeight = -1
-            cellRenderer = SvgItemListRenderer()
 
             addMouseListener(object : MouseAdapter() {
                 override fun mouseClicked(e: MouseEvent) {
                     if (e.clickCount == 1) {
                         val index = locationToIndex(e.point)
                         if (index != -1) {
-                            val item = svgListModel.getElementAt(index)
-                            // Placeholder for item click handling
+                            val item = listModel.getElementAt(index)
                         }
                     }
                 }
             })
         }
 
-        return JBScrollPane(svgList).apply {
+        val scrollPane = JBScrollPane(resultsList).apply {
             border = BorderFactory.createLineBorder(JBColor.border())
         }
+
+        val inputPanel = JBPanel<JBPanel<*>>().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            add(directoryPanel)
+            add(Box.createVerticalStrut(10))
+            add(searchPanel)
+            add(Box.createVerticalStrut(15))
+        }
+
+        val centerPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
+            add(inputPanel, BorderLayout.NORTH)
+            add(scrollPane, BorderLayout.CENTER)
+        }
+
+        mainPanel.add(centerPanel, BorderLayout.CENTER)
+        return mainPanel
     }
 }
 
-private class SvgItemListRenderer : JBLabel(), ListCellRenderer<SvgItem> {
+private class CustomListCellRenderer : JBLabel(), javax.swing.ListCellRenderer<SvgItem> {
     override fun getListCellRendererComponent(
-        list: JList<out SvgItem>,
-        value: SvgItem?,
-        index: Int,
-        isSelected: Boolean,
-        cellHasFocus: Boolean
-    ): Component {
+        list: javax.swing.JList<out SvgItem>, value: SvgItem?, index: Int, isSelected: Boolean, cellHasFocus: Boolean
+    ): CustomListCellRenderer {
+
         value?.let {
+            val width = 80f
+            val height = 80f
+
+            var pngBytes = ByteArray(0)
+            try {
+                pngBytes = svgToPngByteArray(it.svgContent, width, height)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             text = it.name
-            icon = createIcon(it)
-            preferredSize = Dimension(280, 100)
+            icon = ImageIcon(pngBytes)
+            preferredSize = Dimension(
+                (width + 200).toInt(), (height + 20).toInt()
+            )
         }
 
         border = BorderFactory.createEmptyBorder(10, 15, 10, 15)
@@ -155,15 +172,5 @@ private class SvgItemListRenderer : JBLabel(), ListCellRenderer<SvgItem> {
         iconTextGap = 20
 
         return this
-    }
-
-    private fun createIcon(svgItem: SvgItem): ImageIcon {
-        return try {
-            val pngBytes = svgToPngByteArray(svgItem.svgContent, 80f, 80f)
-            ImageIcon(pngBytes)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            ImageIcon()
-        }
     }
 }
