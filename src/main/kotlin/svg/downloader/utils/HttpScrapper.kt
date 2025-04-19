@@ -1,8 +1,6 @@
 package svg.downloader.utils
 
-import com.jetbrains.rd.generator.nova.PredefinedType
 import org.jsoup.Jsoup
-import java.io.InputStream
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -11,8 +9,6 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.zip.GZIPInputStream
-import java.util.zip.InflaterInputStream
 
 // Shared HTTP client with connection pooling
 object HttpUtils {
@@ -26,7 +22,7 @@ object HttpUtils {
             .build()
 }
 
-data class SvgItem(val name: String, val url: String, val svgContent: String)
+data class SvgItem(val name: String, val url: String, val svgContent: String, val fileName: String)
 
 fun extractSvgItems(html: String): List<SvgItem> {
     val doc = Jsoup.parse(html)
@@ -47,7 +43,7 @@ fun extractSvgItems(html: String): List<SvgItem> {
 
             val response = HttpUtils.client.send(request, HttpResponse.BodyHandlers.ofString())
             if (response.statusCode() == 200) {
-                SvgItem(name, url, response.body())
+                SvgItem(name, url, response.body(), getLastPart(url))
             } else null
         } catch (e: Exception) {
             null
@@ -74,3 +70,7 @@ fun fetchSvgRepoPage(searchName: String, pageNumber: Int): String {
     }
 }
 
+fun getLastPart(url: String): String {
+    val trimmedUrl = url.trimEnd('/') // Remove trailing slash
+    return trimmedUrl.substringAfterLast('/')
+}

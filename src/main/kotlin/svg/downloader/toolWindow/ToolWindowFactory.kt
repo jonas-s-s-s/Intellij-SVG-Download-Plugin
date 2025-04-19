@@ -1,6 +1,7 @@
 package svg.downloader.toolWindow
 
 import com.intellij.openapi.components.service
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextBrowseFolderListener
@@ -14,7 +15,7 @@ import svg.downloader.services.ProjectService
 import svg.downloader.utils.SvgItem
 import svg.downloader.utils.extractSvgItems
 import svg.downloader.utils.fetchSvgRepoPage
-import svg.downloader.utils.svgToPngByteArray
+import svg.downloader.utils.svgToJpegByteArray
 import java.awt.*
 import javax.swing.*
 import java.awt.event.MouseAdapter
@@ -49,11 +50,17 @@ class ToolWindowFactory : ToolWindowFactory {
 // -------------------------
 // ToolWindow UI
 // -------------------------
-
 private class ToolWindowUI(private val toolWindow: ToolWindow) {
     private val project: Project = toolWindow.project
     private val projectService: ProjectService = project.service()
     private val listModel = DefaultListModel<SvgItem>()
+    private var currentPage = 1
+    private var currentSearchTerm: String = ""
+    private lateinit var directoryField: TextFieldWithBrowseButton
+    private lateinit var searchButton: JButton
+    private lateinit var statusLabel: JBLabel
+    private lateinit var searchTextField: JBTextField
+    private lateinit var pageLabel: JBLabel
 
     // Main panel creation function
     fun createContentPanel(): JPanel {
@@ -74,8 +81,12 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
             add(directoryField)
             add(Box.createVerticalStrut(10))
             add(searchPanel)
+            add(Box.createVerticalStrut(10))
+            add(createPageControls())
             add(Box.createVerticalStrut(15))
         }
+
+        statusLabel = createStatusLabel()
 
         // Results List
         val scrollPane = createResultsList()
@@ -84,6 +95,7 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
         val centerPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
             add(inputPanel, BorderLayout.NORTH)
             add(scrollPane, BorderLayout.CENTER)
+            add(statusLabel, BorderLayout.PAGE_END)
         }
 
         mainPanel.add(centerPanel, BorderLayout.CENTER)
@@ -94,6 +106,11 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
     // Components Section
     // -------------------------
 
+    private fun createStatusLabel(): JBLabel = JBLabel().apply {
+        foreground = JBColor.GRAY
+        isVisible = false
+    }
+
     private fun createTitleLabel(): JBLabel =
         JBLabel("SVG Icon Downloader").apply {
             font = font.deriveFont(Font.BOLD, TITLE_FONT_SIZE)
@@ -101,7 +118,7 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
         }
 
     private fun createDirectoryPicker(): JPanel {
-        val directoryField = TextFieldWithBrowseButton().apply {
+        directoryField = TextFieldWithBrowseButton().apply {
             addBrowseFolderListener(
                 TextBrowseFolderListener(FileChooserDescriptorFactory.createSingleFolderDescriptor(), project)
             )
@@ -115,26 +132,77 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
     }
 
     private fun createSearchSection(directoryPanel: JPanel): JPanel {
-        val searchTextField = JBTextField()
-        val searchButton = JButton("Search").apply {
-            addActionListener {
-                listModel.clear()
-                val searchTerm = searchTextField.text.trim()
-                if (searchTerm.isNotEmpty()) {
-                    isEnabled = false
-                    val html = fetchSvgRepoPage(searchTerm, 1)
-                    val items = extractSvgItems(html)
-                    items.forEach { listModel.addElement(it) }
-                    isEnabled = true
-                }
-            }
+        searchTextField = JBTextField()
+        searchButton = JButton("Search")
+
+        searchButton.addActionListener {
+            val searchTerm = searchTextField.text.trim()
+            performSearch(searchTerm, 1)
         }
 
         return JBPanel<JBPanel<*>>(BorderLayout(5, 0)).apply {
-            add(JBLabel("Searching for SVG with name:"), BorderLayout.WEST)
+            add(JBLabel("Search for SVG:"), BorderLayout.WEST)
             add(searchTextField, BorderLayout.CENTER)
             add(searchButton, BorderLayout.EAST)
         }
+    }
+
+    private fun createPageControls(): JPanel {
+        val previousButton = JButton("Previous")
+        val nextButton = JButton("Next")
+        pageLabel = JBLabel("Page $currentPage")
+
+        previousButton.addActionListener {
+            if (currentPage > 1) {
+                if (currentSearchTerm.isNotEmpty())
+                    performSearch(currentSearchTerm, currentPage - 1)
+            }
+        }
+
+        nextButton.addActionListener {
+            if (currentSearchTerm.isNotEmpty())
+                performSearch(currentSearchTerm, currentPage + 1)
+        }
+
+        return JBPanel<JBPanel<*>>(FlowLayout(FlowLayout.LEFT, 5, 0)).apply {
+            add(previousButton)
+            add(nextButton)
+            add(pageLabel)
+        }
+    }
+
+    private fun performSearch(searchTerm: String, page: Int) {
+        if (searchTerm.isEmpty()) return
+
+        currentSearchTerm = searchTerm
+        currentPage = page
+        pageLabel.text = "Page $currentPage"
+
+        searchButton.isEnabled = false
+        statusLabel.text = "Searching page $page..."
+        statusLabel.isVisible = true
+
+        val worker = object : SwingWorker<List<SvgItem>, Void>() {
+            override fun doInBackground(): List<SvgItem> {
+                val html = fetchSvgRepoPage(searchTerm, page)
+                return extractSvgItems(html)
+            }
+
+            override fun done() {
+                try {
+                    listModel.clear()
+                    get()?.forEach { listModel.addElement(it) }
+                } catch (e: Exception) {
+                    statusLabel.text = "Error: ${e.message}"
+                } finally {
+                    SwingUtilities.invokeLater {
+                        searchButton.isEnabled = true
+                        statusLabel.isVisible = false
+                    }
+                }
+            }
+        }
+        worker.execute()
     }
 
     private fun createResultsList(): JScrollPane {
@@ -147,8 +215,8 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
                     if (e.clickCount == 1) {
                         val index = locationToIndex(e.point)
                         if (index != -1) {
-                            listModel.getElementAt(index)
-                            // Item clicked — extend behavior here if needed
+                            val i = listModel.getElementAt(index)
+                            projectService.writeSvg(directoryField.text, i.fileName, i.svgContent)
                         }
                     }
                 }
@@ -159,8 +227,8 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
             border = BorderFactory.createLineBorder(JBColor.border())
         }
     }
-}
 
+}
 // -------------------------
 // Custom Cell Renderer
 // -------------------------
@@ -170,15 +238,15 @@ private class CustomListCellRenderer : JBLabel(), ListCellRenderer<SvgItem> {
         list: JList<out SvgItem>, value: SvgItem?, index: Int, isSelected: Boolean, cellHasFocus: Boolean
     ): CustomListCellRenderer {
         value?.let {
-            var pngBytes = ByteArray(0)
+            var jpegBytes = ByteArray(0)
             try {
-                pngBytes = svgToPngByteArray(it.svgContent, SEARCH_ICON_WIDTH, SEARCH_ICON_HEIGHT)
+                jpegBytes = svgToJpegByteArray(it.svgContent, SEARCH_ICON_WIDTH, SEARCH_ICON_HEIGHT)
             } catch (e: Exception) {
-                e.printStackTrace()
+                logger<CustomListCellRenderer>().info("Failed to convert SVG to JPEG: ${e.message}")
             }
 
-            text = it.name
-            icon = ImageIcon(pngBytes)
+            text = "<html>${it.name}<br><small>${it.fileName}</small></html>"
+            icon = ImageIcon(jpegBytes)
             preferredSize = Dimension(
                 (SEARCH_ICON_WIDTH + 200).toInt(), (SEARCH_ICON_HEIGHT + 20).toInt()
             )
@@ -193,3 +261,4 @@ private class CustomListCellRenderer : JBLabel(), ListCellRenderer<SvgItem> {
         return this
     }
 }
+

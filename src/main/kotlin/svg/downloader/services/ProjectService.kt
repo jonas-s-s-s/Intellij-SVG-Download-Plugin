@@ -39,4 +39,32 @@ class ProjectService(private val project: Project) {
         }
     }
 
+    fun writeSvg(path: String, fileName: String, content: String) {
+        val targetDirFile = File(path)
+        val targetDir = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(targetDirFile) ?: run {
+            thisLogger().warn("Target directory not found: $path")
+            return
+        }
+
+        val dotIndex = fileName.lastIndexOf('.')
+        val (base, ext) = if (dotIndex != -1) {
+            Pair(fileName.substring(0, dotIndex), fileName.substring(dotIndex + 1))
+        } else {
+            Pair(fileName, "")
+        }
+
+        var candidateName = fileName
+        var counter = 1
+
+        while (targetDir.findChild(candidateName) != null) {
+            candidateName = if (ext.isNotEmpty()) {
+                "${base}_${counter}.$ext"
+            } else {
+                "${base}_${counter}"
+            }
+            counter += 1
+        }
+
+        writeFileInProject(path, candidateName, content)
+    }
 }

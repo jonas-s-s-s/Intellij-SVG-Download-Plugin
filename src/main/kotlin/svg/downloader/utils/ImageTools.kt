@@ -1,6 +1,5 @@
 package svg.downloader.utils
 
-import org.apache.batik.transcoder.image.PNGTranscoder
 import org.apache.batik.transcoder.TranscoderInput
 import org.apache.batik.transcoder.TranscoderOutput
 import org.apache.batik.transcoder.image.JPEGTranscoder
@@ -10,7 +9,7 @@ import java.io.ByteArrayOutputStream
 import java.io.StringReader
 import javax.imageio.ImageIO
 
-fun svgToPngByteArray(
+fun svgToJpegByteArray(
     svgString: String,
     width: Float = 80f,   // Default width
     height: Float = 80f,  // Default height
