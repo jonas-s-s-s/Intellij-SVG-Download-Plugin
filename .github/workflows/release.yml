@@ -31,6 +31,10 @@ jobs:
           distribution: zulu
           java-version: 21
 
+      # Gradle fix
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+
       # Setup Gradle
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
