@@ -38,7 +38,7 @@ jobs:
       # Check out the current repository
       - name: Fetch Sources
         uses: actions/checkout@v4
-
+        
       # Set up Java environment for the next steps
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -65,7 +65,11 @@ jobs:
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-
+      
+      # Gradle fix
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
+      
       # Build plugin
       - name: Build plugin
         run: ./gradlew buildPlugin
