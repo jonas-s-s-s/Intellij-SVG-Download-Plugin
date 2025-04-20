@@ -1,7 +1,7 @@
 package svg.downloader.toolWindow
 
 import com.intellij.openapi.components.service
-import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextBrowseFolderListener
@@ -95,6 +95,7 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
         val centerPanel = JBPanel<JBPanel<*>>(BorderLayout()).apply {
             add(inputPanel, BorderLayout.NORTH)
             add(scrollPane, BorderLayout.CENTER)
+            // Status label shows at the bottom of the window
             add(statusLabel, BorderLayout.PAGE_END)
         }
 
@@ -130,7 +131,6 @@ private class ToolWindowUI(private val toolWindow: ToolWindow) {
             add(directoryField, BorderLayout.CENTER)
         }
     }
-
 
 
     private fun createSearchSection(directoryPanel: JPanel): JPanel {
@@ -253,7 +253,7 @@ private class CustomListCellRenderer : JBLabel(), ListCellRenderer<SvgItem> {
             try {
                 jpegBytes = svgToJpegByteArray(it.svgContent, SEARCH_ICON_WIDTH, SEARCH_ICON_HEIGHT)
             } catch (e: Exception) {
-                logger<CustomListCellRenderer>().info("Failed to convert SVG to JPEG: ${e.message}")
+                thisLogger().warn("Failed to convert SVG to JPEG: ${e.message}")
             }
 
             text = "<html>${it.name}<br><small>${it.fileName}</small></html>"

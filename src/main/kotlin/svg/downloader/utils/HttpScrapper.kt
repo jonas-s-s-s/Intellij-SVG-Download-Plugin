@@ -10,7 +10,9 @@ import java.time.Duration
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-// Shared HTTP client with connection pooling
+/**
+ *  Shared HTTP client with connection pooling
+ */
 object HttpUtils {
     private const val MAX_CONNECTIONS = 50
     private val executor: ExecutorService = Executors.newFixedThreadPool(MAX_CONNECTIONS)
@@ -22,8 +24,14 @@ object HttpUtils {
             .build()
 }
 
+/**
+ * Class describing a single SVG image (used for displaying in GUI and processing)
+ */
 data class SvgItem(val name: String, val url: String, val svgContent: String, val fileName: String)
 
+/**
+ * Extracts and returns a list of SvgItem instances from the HTML string (using jsoup)
+ */
 fun extractSvgItems(html: String): List<SvgItem> {
     val doc = Jsoup.parse(html)
 
@@ -51,6 +59,9 @@ fun extractSvgItems(html: String): List<SvgItem> {
     }.filter { it != null }.toList().filterNotNull()
 }
 
+/**
+ * Returns an HTML markup string of a certain svgrepo.com page
+ */
 fun fetchSvgRepoPage(searchName: String, pageNumber: Int): String {
     val encodedSearch = URLEncoder.encode(searchName, "UTF-8")
     val url = "https://www.svgrepo.com/vectors/$encodedSearch/$pageNumber"
@@ -70,6 +81,9 @@ fun fetchSvgRepoPage(searchName: String, pageNumber: Int): String {
     }
 }
 
+/**
+ * Extracts the last part of a URL (part after the last slash)
+ */
 fun getLastPart(url: String): String {
     val trimmedUrl = url.trimEnd('/') // Remove trailing slash
     return trimmedUrl.substringAfterLast('/')

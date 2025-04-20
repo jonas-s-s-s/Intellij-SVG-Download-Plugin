@@ -3,11 +3,8 @@ package svg.downloader.utils
 import org.apache.batik.transcoder.TranscoderInput
 import org.apache.batik.transcoder.TranscoderOutput
 import org.apache.batik.transcoder.image.JPEGTranscoder
-import java.awt.image.BufferedImage
-import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.StringReader
-import javax.imageio.ImageIO
 
 fun svgToJpegByteArray(
     svgString: String,
@@ -29,12 +26,3 @@ fun svgToJpegByteArray(
         outputStream.toByteArray()
     }
 }
-
-fun byteArrayToBufferedImage(pngBytes: ByteArray): BufferedImage {
-    ByteArrayInputStream(pngBytes).use { inputStream ->
-        val image = ImageIO.read(inputStream)
-        requireNotNull(image) { "Failed to decode image from byte array" }
-        return image
-    }
-}
-

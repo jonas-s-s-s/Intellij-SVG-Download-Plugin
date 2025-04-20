@@ -13,18 +13,24 @@ import java.io.IOException
 @Service(Service.Level.PROJECT)
 class ProjectService(private val project: Project) {
 
-    // Returns the project root path as a string
+    /**
+     * Returns the project root path as a string
+     */
     fun getProjectRootPath(): String? {
         return project.basePath
     }
 
-    // Checks if the given path is valid and exists
+    /**
+     * Checks if the given path is valid and exists
+     */
     fun isPathValid(path: String): Boolean {
         val file = File(path)
         return file.exists() && file.isDirectory
     }
 
-    // Writes a file with the given name and content into the specified relative path within the project
+    /**
+     * Writes a file with the given name and content into the specified path within the project
+     */
     fun writeFileInProject(path: String, fileName: String, content: String) {
         val targetPath = File(path)
         val targetDir = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(targetPath) ?: return
@@ -39,6 +45,9 @@ class ProjectService(private val project: Project) {
         }
     }
 
+    /**
+     * Writes an SVG file, checks for duplicate files and avoids rewriting them
+     */
     fun writeSvg(path: String, fileName: String, content: String) {
         val targetDirFile = File(path)
         val targetDir = LocalFileSystem.getInstance().refreshAndFindFileByIoFile(targetDirFile) ?: run {
