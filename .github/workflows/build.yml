@@ -45,6 +45,10 @@ jobs:
         with:
           distribution: zulu
           java-version: 21
+          
+      # Gradle fix
+      - name: Change wrapper permissions
+        run: chmod +x ./gradlew
 
       # Setup Gradle
       - name: Setup Gradle
@@ -65,10 +69,6 @@ jobs:
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-      
-      # Gradle fix
-      - name: Change wrapper permissions
-        run: chmod +x ./gradlew
       
       # Build plugin
       - name: Build plugin
