@@ -2,7 +2,7 @@
 <idea-plugin>
 
     <id>svg.downloader</id>
-    <name>Svg Icon Downloader</name>
+    <name>SVG Icon Downloader</name>
     <vendor>Jonas D.</vendor>
     <depends>com.intellij.modules.platform</depends>
 
