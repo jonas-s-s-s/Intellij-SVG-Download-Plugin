@@ -34,6 +34,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.opentest4j)
 
+    implementation("org.jsoup", "jsoup", "1.16.1")
 
     implementation("org.apache.xmlgraphics", "batik-all", "1.17") {
         exclude("xml-apis", "xml-apis")
