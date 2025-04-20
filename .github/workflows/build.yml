@@ -173,6 +173,8 @@ jobs:
       # Run Verify Plugin task and IntelliJ Plugin Verifier tool
       - name: Run Plugin Verification tasks
         run: ./gradlew verifyPlugin -Dplugin.verifier.home.dir=${{ needs.build.outputs.pluginVerifierHomeDir }}
+        env:
+          JAVA_TOOL_OPTIONS: -Xmx4g
 
       # Collect Plugin Verifier Result
       - name: Collect Plugin Verifier Result
@@ -187,8 +189,7 @@ jobs:
   releaseDraft:
     name: Release draft
     if: github.event_name != 'pull_request'
-    # needs: [ build, inspectCode, verify ]
-    needs: [build]
+    needs: [ build, inspectCode, verify ] 
     runs-on: ubuntu-latest
     permissions:
       contents: write
