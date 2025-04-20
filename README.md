@@ -8,6 +8,7 @@ Key features:
 - Download icons with a single click
 - Preview icons before downloading
 - Choose a download directory inside your project
+
 <!-- Plugin description end -->
 
 ## Installation
