@@ -74,9 +74,16 @@ intellijPlatform {
         }
 
         // Render change notes as HTML for this version
-        changeNotes = providers.gradleProperty("pluginVersion").map { ver ->
-            project.changelog.run {
-                renderItem(getOrNull(ver) ?: getUnreleased(), Changelog.OutputType.HTML)
+        val changelog = project.changelog
+        // Get the latest available change notes from the changelog file
+        changeNotes = providers.gradleProperty("pluginVersion").map { pluginVersion ->
+            with(changelog) {
+                renderItem(
+                    (getOrNull(pluginVersion) ?: getUnreleased())
+                        .withHeader(false)
+                        .withEmptySections(false),
+                    Changelog.OutputType.HTML,
+                )
             }
         }
 
