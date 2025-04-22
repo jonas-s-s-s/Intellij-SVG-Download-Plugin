@@ -13,7 +13,7 @@ Key features:
 
 ## Installation
 
-- Install the plugin from the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/your-plugin-id)
+- Install the plugin from the [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/27126-svg-icon-downloader/)
 
 ## Example Usage
 
